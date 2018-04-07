@@ -94,6 +94,12 @@
 @property (readwrite, nonatomic, assign) BOOL recordMode;
 
 /**
+ When YES, a test will run and fail when no reference image exists, without needing to run
+ recordMode first. The fail image is stored and can be reviewed and accepted as a reference.
+ */
+@property (readwrite, nonatomic, assign) BOOL autoRecord;
+
+/**
  When @c YES appends the name of the device model and OS to the snapshot file name.
  The default value is @c NO.
  */

@@ -40,6 +40,17 @@
   _snapshotController.recordMode = recordMode;
 }
 
+- (BOOL)autoRecord
+{
+    return _snapshotController.autoRecord;
+}
+
+- (void)setAutoRecord:(BOOL)autoRecord
+{
+    NSAssert1(_snapshotController, @"%s cannot be called before [super setUp]", __FUNCTION__);
+    _snapshotController.autoRecord = autoRecord;
+}
+
 - (BOOL)isDeviceAgnostic
 {
   return _snapshotController.deviceAgnostic;
@@ -122,11 +133,14 @@
     }
   }
   
-  if (!testSuccess) {
-    return [NSString stringWithFormat:@"Snapshot comparison failed: %@", errors.firstObject];
-  }
   if (self.recordMode) {
     return @"Test ran in record mode. Reference image is now saved. Disable record mode to perform an actual snapshot comparison!";
+  }
+  else if (!testSuccess && !self.autoRecord) {
+    return [NSString stringWithFormat:@"Snapshot comparison failed: %@", errors.firstObject];
+  }
+  else if (!testSuccess && self.autoRecord) {
+    return [NSString stringWithFormat:@"No previous reference image. New image has been stored for approval."];
   }
 
   return nil;

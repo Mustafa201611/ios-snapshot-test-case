@@ -24,13 +24,18 @@
       if let envReferenceImageDirectory = envReferenceImageDirectory {
         for suffix in suffixes {
           let referenceImagesDirectory = "\(envReferenceImageDirectory)\(suffix)"
+          var referenceImageExists = true
           if viewOrLayer.isKind(of: UIView.self) {
             do {
               try compareSnapshot(of: viewOrLayer as! UIView, referenceImagesDirectory: referenceImagesDirectory, identifier: identifier, tolerance: tolerance)
               comparisonSuccess = true
             } catch let error1 as NSError {
-              error = error1
               comparisonSuccess = false
+              if error1.code == 1 {
+                referenceImageExists = false
+              } else {
+                error = error1
+              }
             }
           } else if viewOrLayer.isKind(of: CALayer.self) {
             do {
@@ -39,6 +44,11 @@
             } catch let error1 as NSError {
               error = error1
               comparisonSuccess = false
+              if error1.code == 1 {
+                referenceImageExists = false
+              } else {
+                error = error1
+              }
             }
           } else {
             assertionFailure("Only UIView and CALayer classes can be snapshotted")
@@ -49,7 +59,13 @@
           if comparisonSuccess || recordMode {
             break
           }
+          
+          assert(self.autoRecord == false || referenceImageExists, message: "No previous reference image. New image has been stored for approval.", file: file, line: line)
 
+          if self.autoRecord && !referenceImageExists {
+            break
+          }
+            
           assert(comparisonSuccess, message: "Snapshot comparison failed: \(String(describing: error))", file: file, line: line)
         }
       } else {
@@ -86,16 +102,24 @@ public extension FBSnapshotTestCase {
             try compareSnapshotOfView(viewOrLayer as! UIView, referenceImagesDirectory: referenceImagesDirectory, identifier: identifier, tolerance: tolerance)
             comparisonSuccess = true
           } catch let error1 as NSError {
-            error = error1
             comparisonSuccess = false
+            if error1.code == 1 {
+              referenceImageExists = false
+            } else {
+              error = error1
+            }
           }
         } else if viewOrLayer.isKindOfClass(CALayer) {
           do {
             try compareSnapshotOfLayer(viewOrLayer as! CALayer, referenceImagesDirectory: referenceImagesDirectory, identifier: identifier, tolerance: tolerance)
             comparisonSuccess = true
           } catch let error1 as NSError {
-            error = error1
             comparisonSuccess = false
+            if error1.code == 1 {
+              referenceImageExists = false
+            } else {
+              error = error1
+            }
           }
         } else {
           assertionFailure("Only UIView and CALayer classes can be snapshotted")
@@ -104,6 +128,12 @@ public extension FBSnapshotTestCase {
         assert(recordMode == false, message: "Test ran in record mode. Reference image is now saved. Disable record mode to perform an actual snapshot comparison!", file: file, line: line)
 
         if comparisonSuccess || recordMode {
+          break
+        }
+
+        assert(self.autoRecord == false || referenceImageExists, message: "No previous reference image. New image has been stored for approval.", file: file, line: line)
+
+        if self.autoRecord && !referenceImageExists {
           break
         }
 

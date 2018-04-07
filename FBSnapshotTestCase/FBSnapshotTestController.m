@@ -107,7 +107,7 @@ typedef NS_ENUM(NSUInteger, FBTestSnapshotFileNameType) {
   UIImage *image = [UIImage imageWithContentsOfFile:filePath];
   if (nil == image && NULL != errorPtr) {
     BOOL exists = [_fileManager fileExistsAtPath:filePath];
-    if (!exists) {
+    if (!exists && !self.autoRecord) {
       *errorPtr = [NSError errorWithDomain:FBSnapshotTestControllerErrorDomain
                                       code:FBSnapshotTestControllerErrorCodeNeedsRecord
                                   userInfo:@{
@@ -115,6 +115,14 @@ typedef NS_ENUM(NSUInteger, FBTestSnapshotFileNameType) {
                  NSLocalizedDescriptionKey: @"Unable to load reference image.",
           NSLocalizedFailureReasonErrorKey: @"Reference image not found. You need to run the test in record mode",
                    }];
+    } else if (!exists && self.autoRecord) {
+        *errorPtr = [NSError errorWithDomain:FBSnapshotTestControllerErrorDomain
+                                        code:FBSnapshotTestControllerErrorCodeNeedsRecord
+                                    userInfo:@{
+                                               FBReferenceImageFilePathKey: filePath,
+                                               NSLocalizedDescriptionKey: @"Unable to load reference image.",
+                                               NSLocalizedFailureReasonErrorKey: @"Reference image not found. Auto-recorded image saved for review",
+                                               }];
     } else {
       *errorPtr = [NSError errorWithDomain:FBSnapshotTestControllerErrorDomain
                                       code:FBSnapshotTestControllerErrorCodeUnknown
@@ -178,7 +186,7 @@ typedef NS_ENUM(NSUInteger, FBTestSnapshotFileNameType) {
     return NO;
   }
 
-  if (![referencePNGData writeToFile:referencePath options:NSDataWritingAtomic error:errorPtr]) {
+  if (![referencePNGData writeToFile:referencePath options:NSDataWritingAtomic error:errorPtr] && !self.autoRecord) {
     return NO;
   }
 
@@ -197,7 +205,7 @@ typedef NS_ENUM(NSUInteger, FBTestSnapshotFileNameType) {
   UIImage *diffImage = [referenceImage fb_diffWithImage:testImage];
   NSData *diffImageData = UIImagePNGRepresentation(diffImage);
 
-  if (![diffImageData writeToFile:diffPath options:NSDataWritingAtomic error:errorPtr]) {
+  if (![diffImageData writeToFile:diffPath options:NSDataWritingAtomic error:errorPtr] && !self.autoRecord) {
     return NO;
   }
 
@@ -281,9 +289,16 @@ typedef NS_ENUM(NSUInteger, FBTestSnapshotFileNameType) {
                                          error:(NSError **)errorPtr
 {
   UIImage *referenceImage = [self referenceImageForSelector:selector identifier:identifier error:errorPtr];
-  if (nil != referenceImage) {
+  if (nil != referenceImage || self.autoRecord == true) {
     UIImage *snapshot = [self _imageForViewOrLayer:viewOrLayer];
-    BOOL imagesSame = [self compareReferenceImage:referenceImage toImage:snapshot tolerance:tolerance error:errorPtr];
+    BOOL imagesSame;
+    
+    if (referenceImage == nil && self.autoRecord) {
+      imagesSame = NO;
+    } else {
+      imagesSame = [self compareReferenceImage:referenceImage toImage:snapshot tolerance:tolerance error:errorPtr];
+    }
+
     if (!imagesSame) {
       NSError *saveError = nil;
       if ([self saveFailedReferenceImage:referenceImage testImage:snapshot selector:selector identifier:identifier error:&saveError] == NO) {
