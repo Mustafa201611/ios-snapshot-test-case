@@ -294,7 +294,10 @@ typedef NS_ENUM(NSUInteger, FBTestSnapshotFileNameType) {
     BOOL imagesSame;
     
     if (referenceImage == nil && self.autoRecord) {
-      imagesSame = NO;
+      NSError *saveError = nil;
+      if ([self _saveReferenceImage:snapshot selector:selector identifier:identifier error:errorPtr] == NO) {
+        NSLog(@"Error saving autorecorded reference image: %@", saveError);
+      }
     } else {
       imagesSame = [self compareReferenceImage:referenceImage toImage:snapshot tolerance:tolerance error:errorPtr];
     }
